@@ -9,6 +9,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# producer가 topic에 msg 전송
 def producerSend(writer, timestamp, content):
     producer = KafkaProducer(bootstrap_servers='localhost:9092', value_serializer=lambda x: dumps(x).encode('utf-8'))
 
@@ -16,11 +17,13 @@ def producerSend(writer, timestamp, content):
     producer.send('test-topic',value=test_string)
     producer.flush()
 
+# index route - 사용할 일 없음
 @app.route("/")
 def index():
     print("홈 들어옴")
     return "home"
     
+# ui에서 msg 받아와 producerSend 메소드 실행
 @app.route("/msg_send",methods=['POST'])
 def producer_test():
     params = request.get_json()
