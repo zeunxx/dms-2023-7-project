@@ -28,7 +28,6 @@ def check_time():
 # producer가 topic에 msg 전송
 def producerSend(writer, timestamp, content):
     producer = KafkaProducer(bootstrap_servers='localhost:9092', value_serializer=lambda x: dumps(x).encode('utf-8'))
-
     test_string={"writer":writer,"timestamp":str(timestamp),"content":content}
     producer.send('test-topic',value=test_string)
     producer.flush()
@@ -36,12 +35,11 @@ def producerSend(writer, timestamp, content):
 # consumer가 topic에서 msg 수신
 def consumerGet():
     consumer = KafkaConsumer('test-topic', bootstrap_servers='localhost:9092')
-    string = " "
     for message in consumer:
+        # message : ConsumerRecord(topic='test-topic', partition=0, offset=73, timestamp=1683459269644, timestamp_type=0, key=None, value=b'{"writer": "testttttttest", "timestamp": "05/07 20:11", "content": "test content 0507"}', headers=[], checksum=None, serialized_key_size=-1, serialized_value_size=87, serialized_header_size=-1)
         value = message.value
         d = json.loads(value.decode('utf-8'))
-        # print(f'{d.get("writer", "Nothing")} / {type(d.get("writer", "Nothing"))}')
-        string = d.get("content", "Nothing")
+        string = {"content": d.get("content", "Nothing"), "timestamp": d.get("timestamp", "Nothing")}
         return string
 
 # index route - 사용할 일 없음
@@ -62,9 +60,11 @@ def producer_test():
 
 @app.route("/msg_get",methods=['POST'])
 def consumer_test():
-    msg = consumerGet()
-    d = {"message": msg}
-    json_data = json.dumps(d)
-    return json_data
+    ans = consumerGet()
+    # ans : {'content': 'test content 0507', 'timestamp': '05/07 20:11'} / <class 'dict'>
+    json_ans = json.dumps(ans)
+    # json_ans : {"content": "test content 0507", "timestamp": "05/07 20:11"} / <class 'str'>
+    # 모두 쌍따옴표로 감싸져 있어야 다시 javascript에서 JSON으로 변환 가능
+    return json_ans
 
 app.run(port=8989, debug=True)
