@@ -58,7 +58,7 @@ def producer_test():
     producerSend(writer, timestamp, content)
     return "ok"
 
-@app.route("/msg_get",methods=['POST'])
+@app.route("/msg_get",methods=['GET', 'POST'])
 def consumer_test():
     ans = consumerGet()
     # ans : {'content': 'test content 0507', 'timestamp': '05/07 20:11'} / <class 'dict'>
