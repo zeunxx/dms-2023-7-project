@@ -1,6 +1,6 @@
 import json
-
-from flask import Flask
+import requests
+from flask import Flask, request, jsonify
 from flask import *
 from kafka import KafkaProducer, KafkaConsumer
 from json import dumps
@@ -31,6 +31,9 @@ def producerSend(writer, timestamp, content):
     test_string={"writer":writer,"timestamp":str(timestamp),"content":content}
     producer.send('test-topic',value=test_string)
     producer.flush()
+    result = consumer()
+    print("###############" , result)
+
 
 # consumer가 topic에서 msg 수신
 def consumerGet():
@@ -41,6 +44,8 @@ def consumerGet():
         d = json.loads(value.decode('utf-8'))
         string = {"content": d.get("content", "Nothing"), "timestamp": d.get("timestamp", "Nothing")}
         return string
+        
+
 
 # index route - 사용할 일 없음
 @app.route("/")
@@ -58,6 +63,8 @@ def producer_test():
     producerSend(writer, timestamp, content)
     return "ok"
 
+
+"""
 @app.route("/msg_get",methods=['GET', 'POST'])
 def consumer_test():
     ans = consumerGet()
@@ -66,5 +73,37 @@ def consumer_test():
     # json_ans : {"content": "test content 0507", "timestamp": "05/07 20:11"} / <class 'str'>
     # 모두 쌍따옴표로 감싸져 있어야 다시 javascript에서 JSON으로 변환 가능
     return json_ans
+    
+""" 
+
+def consumer():
+    # ans = consumerGet() ## 내 컴은 consumer가 안됨
+    ans = '{"writer": "zeun", "timestamp": "06/09 15:43", "content": "h2hh2"}'
+    json_ans = json.loads('{"writer": "zeun", "timestamp": "06/09 15:43", "content": "h2hh2"}')
+
+    # ui 서버에 api 통해 json_ans 전달
+    url = 'http://localhost:5000/consumer'
+    
+    try:
+        # 요청 데이터
+        data = json_ans
+
+        # API 요청 보내기
+        response = requests.post(url, json=data)
+    
+
+        # 응답 처리
+        if response.status_code == 200:
+            # API 응답을 이용한 작업 수행
+            result = response.json()
+            
+            return jsonify(result)
+        else:
+            return 'API 요청이 실패하였습니다.'
+
+    except requests.exceptions.RequestException as e:
+        # 예외 처리
+        return 'API 요청 중 오류가 발생하였습니다: ' + str(e)
+    
 
 app.run(port=8989, debug=True)
