@@ -3,14 +3,19 @@ import requests
 from flask import Flask, request, jsonify
 from flask import *
 from kafka import KafkaProducer, KafkaConsumer
-from json import dumps
+from json import dumps,loads
 import sys
 import time
 from flask_cors import CORS
 import datetime
+import subprocess
+import os
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 CORS(app)
+
 
 # 09~22시 사이에는 배치 레이어 작업
 # => 시간 체크하는 함수
@@ -27,7 +32,7 @@ def check_time():
 
 # producer가 topic에 msg 전송
 def producerSend(writer, timestamp, content):
-    producer = KafkaProducer(bootstrap_servers='localhost:9092', value_serializer=lambda x: dumps(x).encode('utf-8'))
+    producer = KafkaProducer(bootstrap_servers='3.135.130.17:9092', value_serializer=lambda x: dumps(x).encode('utf-8'))
     test_string={"writer":writer,"timestamp":str(timestamp),"content":content}
     producer.send('test-topic',value=test_string)
     producer.flush()
@@ -37,12 +42,12 @@ def producerSend(writer, timestamp, content):
 
 # consumer가 topic에서 msg 수신
 def consumerGet():
-    consumer = KafkaConsumer('test-topic', bootstrap_servers='localhost:9092')
+    consumer = KafkaConsumer('test-topic', bootstrap_servers='3.135.130.17:9092')
     for message in consumer:
         # message : ConsumerRecord(topic='test-topic', partition=0, offset=73, timestamp=1683459269644, timestamp_type=0, key=None, value=b'{"writer": "testttttttest", "timestamp": "05/07 20:11", "content": "test content 0507"}', headers=[], checksum=None, serialized_key_size=-1, serialized_value_size=87, serialized_header_size=-1)
         value = message.value
         d = json.loads(value.decode('utf-8'))
-        string = {"content": d.get("content", "Nothing"), "timestamp": d.get("timestamp", "Nothing")}
+        string = {"writer": d.get("writer", "Nothing"),"content": d.get("content", "Nothing"), "timestamp": d.get("timestamp", "Nothing")}
         return string
         
 
@@ -63,6 +68,31 @@ def producer_test():
     producerSend(writer, timestamp, content)
     return "ok"
 
+@app.route("/img_send", methods=['POST'])
+def img_send():
+    image = request.files["image"]
+    
+    # 이미지를 저장할 경로 설정
+    image_path = "./images/"
+    filename = secure_filename(image.filename)
+    save_path = os.path.join(image_path, filename)
+
+    
+    try:
+        # 이미지 저장
+        image.save(save_path)
+        print(save_path)
+        subprocess.run(["python3","./image_test.py", save_path])
+       
+        return jsonify({"message": "이미지가 성공적으로 업로드되었습니다."}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+    
+    
+    
+
+
 
 """
 @app.route("/msg_get",methods=['GET', 'POST'])
@@ -77,12 +107,12 @@ def consumer_test():
 """ 
 
 def consumer():
-    # ans = consumerGet() ## 내 컴은 consumer가 안됨
-    ans = '{"writer": "zeun", "timestamp": "06/09 15:43", "content": "h2hh2"}'
-    json_ans = json.loads('{"writer": "zeun", "timestamp": "06/09 15:43", "content": "h2hh2"}')
-
+    ans = consumerGet() ## 내 컴은 consumer가 안됨
+    # ans = '{"writer": "zeun", "timestamp": "06/09 15:43", "content": "h2hh2"}'
+    json_ans = json.dumps(ans)
+    print(json_ans)
     # ui 서버에 api 통해 json_ans 전달
-    url = 'http://localhost:5000/consumer'
+    url = 'http://18.221.31.141:5000/consumer'
     
     try:
         # 요청 데이터
@@ -106,4 +136,4 @@ def consumer():
         return 'API 요청 중 오류가 발생하였습니다: ' + str(e)
     
 
-app.run(port=8989, debug=True)
+app.run(port=8989, host='0.0.0.0', debug=True)
